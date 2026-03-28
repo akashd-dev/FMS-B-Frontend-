@@ -29,11 +29,11 @@ const links = [
       <path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/>
     </svg>
   ), label: 'My Orders' },
-  { to: '/chat',     icon: (
+  { to: '/inquiries',     icon: (
     <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
       <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
     </svg>
-  ), label: 'Chat with Farmers' },
+  ), label: 'My Inquiries' },
 ];
 
 export default function Sidebar() {
@@ -145,8 +145,11 @@ export default function Sidebar() {
               {label}
               {badge && <span className="s-badge">{badge}</span>}
             </NavLink>
+            
           ))}
+  
         </nav>
+
 
         <div className="sidebar-bottom">
           <div className="sidebar-version">AgriManage v1.0 · Buyer</div>

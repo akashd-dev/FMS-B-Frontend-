@@ -9,7 +9,8 @@ import Profile from './pages/Profile';
 import Crops from './pages/Crops';
 import Cart from './pages/Cart';
 import Orders from './pages/Orders';
-import Chat from './pages/Chat';
+
+import Inquiries from './pages/Inquiries'
 
 function App() {
   return (
@@ -23,7 +24,7 @@ function App() {
           <Route path="/crops" element={<PrivateRoute><Crops /></PrivateRoute>} />
           <Route path="/cart" element={<PrivateRoute><Cart /></PrivateRoute>} />
           <Route path="/orders" element={<PrivateRoute><Orders /></PrivateRoute>} />
-          <Route path="/chat" element={<PrivateRoute><Chat /></PrivateRoute>} />
+          <Route path="/inquiries" element={<PrivateRoute><Inquiries /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>

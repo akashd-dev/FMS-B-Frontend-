@@ -1,73 +1,76 @@
-import { useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
+import axios from 'axios';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { AuthContext } from '../context/AuthContext';
 
-const stats = [
-  {
-    icon: (
-      <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24">
-        <path d="M12 22V12M12 12C12 7 7 3 2 3s3 7 10 9M12 12c0-5 5-9 10-9s-3 7-10 9"/>
-      </svg>
-    ),
-    label: 'Available Crops',
-    value: '248',
-    delta: '+12 today',
-    accent: '#14b47a',
-    bg: 'rgba(20,180,120,0.08)',
-    border: 'rgba(20,180,120,0.15)',
-  },
-  {
-    icon: (
-      <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24">
-        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-        <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/>
-      </svg>
-    ),
-    label: 'Items in Cart',
-    value: '3',
-    delta: 'Ready to checkout',
-    accent: '#f5a623',
-    bg: 'rgba(245,166,35,0.08)',
-    border: 'rgba(245,166,35,0.15)',
-  },
-  {
-    icon: (
-      <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24">
-        <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-        <path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/>
-      </svg>
-    ),
-    label: 'Total Orders',
-    value: '12',
-    delta: '2 in transit',
-    accent: '#14b47a',
-    bg: 'rgba(20,180,120,0.08)',
-    border: 'rgba(20,180,120,0.15)',
-  },
-  {
-    icon: (
-      <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24">
-        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-      </svg>
-    ),
-    label: 'Unread Messages',
-    value: '5',
-    delta: 'From farmers',
-    accent: '#7c6af7',
-    bg: 'rgba(124,106,247,0.08)',
-    border: 'rgba(124,106,247,0.15)',
-  },
-];
-
-const recentOrders = [
-  { id: '#ORD-001', crop: 'Wheat', qty: '50 kg', farmer: 'Rajesh Kumar', status: 'Delivered',  statusColor: '#14b47a' },
-  { id: '#ORD-002', crop: 'Rice',  qty: '30 kg', farmer: 'Priya Sharma', status: 'In Transit', statusColor: '#f5a623' },
-  { id: '#ORD-003', crop: 'Corn',  qty: '20 kg', farmer: 'Amit Singh',   status: 'Pending',    statusColor: '#7c6af7' },
-];
-
 export default function Dashboard() {
   const { user } = useContext(AuthContext);
+
+  const [stats, setStats] = useState({
+    availableCrops: 0,
+    itemsInCart: 0,
+    totalOrders: 0,
+    unreadMessages: 0
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, []);
+
+  const fetchDashboardStats = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      // 1. Get total available crops
+      const cropsRes = await axios.get('http://localhost:5000/api/crops/all', { withCredentials: true });
+      const availableCrops = cropsRes.data.crops?.length || 0;
+
+      // 2. Get cart count from localStorage
+      const savedCart = localStorage.getItem('buyerCart');
+      const cartItems = savedCart ? JSON.parse(savedCart).length : 0;
+
+      // 3. Get total orders placed by buyer
+      const ordersRes = await axios.get('http://localhost:5000/api/orders/my', { withCredentials: true });
+      const totalOrders = ordersRes.data.orders?.length || 0;
+
+      // 4. For now, unread messages = 0 (you can extend later with real message count)
+      const unreadMessages = 0;
+
+      setStats({
+        availableCrops,
+        itemsInCart: cartItems,
+        totalOrders,
+        unreadMessages
+      });
+
+    } catch (err) {
+      console.error("Dashboard stats error:", err);
+      setError("Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Recent orders (real data from API)
+  const [recentOrders, setRecentOrders] = useState([]);
+
+  useEffect(() => {
+    const fetchRecentOrders = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/api/orders/my', { withCredentials: true });
+        // Take latest 3 orders
+        setRecentOrders(res.data.orders?.slice(0, 3) || []);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchRecentOrders();
+  }, []);
 
   return (
     <>
@@ -80,27 +83,23 @@ export default function Dashboard() {
           font-family: 'DM Sans', sans-serif;
         }
 
-        /* Background */
         .dash-bg {
           position: fixed; inset: 0; z-index: 0; pointer-events: none;
-          background:
-            radial-gradient(ellipse 70% 50% at 70% 10%, rgba(20,180,120,0.09) 0%, transparent 60%),
-            radial-gradient(ellipse 50% 60% at 20% 80%, rgba(16,100,220,0.07) 0%, transparent 60%);
+          background: radial-gradient(ellipse 70% 50% at 70% 10%, rgba(20,180,120,0.09) 0%, transparent 60%),
+                      radial-gradient(ellipse 50% 60% at 20% 80%, rgba(16,100,220,0.07) 0%, transparent 60%);
         }
 
         .dash-grid {
           position: fixed; inset: 0; z-index: 0; pointer-events: none;
-          background-image:
-            linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+          background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
           background-size: 60px 60px;
         }
 
-        /* Main content */
         .dash-main {
           margin-left: 240px;
           flex: 1; display: flex; flex-direction: column;
-          position: relative; z-index: 1; min-height: 100vh;
+          position: relative; z-index: 1;
         }
 
         .dash-body {
@@ -108,19 +107,10 @@ export default function Dashboard() {
           flex: 1;
         }
 
-        /* Page header */
-        .page-header { margin-bottom: 36px; }
-
         .page-eyebrow {
           font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
           color: #14b47a; font-weight: 500; margin-bottom: 8px;
-          display: flex; align-items: center; gap: 6px;
         }
-        .page-eyebrow::before {
-          content: ''; width: 6px; height: 6px; border-radius: 50%;
-          background: #14b47a; animation: blink 2s infinite;
-        }
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
         .page-title {
           font-family: 'Playfair Display', serif;
@@ -131,14 +121,13 @@ export default function Dashboard() {
 
         .page-title span {
           background: linear-gradient(135deg, #14b47a, #1de9b6);
-          -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
 
         .page-sub {
           font-size: 14px; color: rgba(255,255,255,0.32); font-weight: 300;
         }
 
-        /* Stats grid */
         .stats-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -150,19 +139,10 @@ export default function Dashboard() {
           border-radius: 16px; padding: 22px 22px 18px;
           border: 1px solid rgba(255,255,255,0.07);
           transition: transform 0.2s, box-shadow 0.2s;
-          animation: fadeUp 0.5s ease both;
         }
         .stat-card:hover {
           transform: translateY(-2px);
           box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-        }
-        .stat-card:nth-child(2) { animation-delay: 0.05s; }
-        .stat-card:nth-child(3) { animation-delay: 0.10s; }
-        .stat-card:nth-child(4) { animation-delay: 0.15s; }
-
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
         }
 
         .stat-icon-wrap {
@@ -179,101 +159,13 @@ export default function Dashboard() {
 
         .stat-label {
           font-size: 12.5px; color: rgba(255,255,255,0.35);
-          margin-bottom: 10px; font-weight: 400;
+          margin-bottom: 10px;
         }
 
         .stat-delta {
           font-size: 11.5px; font-weight: 500;
           display: flex; align-items: center; gap: 4px;
         }
-
-        /* Content row */
-        .content-row {
-          display: grid;
-          grid-template-columns: 1fr 320px;
-          gap: 20px;
-          animation: fadeUp 0.5s 0.2s ease both;
-        }
-
-        @media (max-width: 1100px) { .content-row { grid-template-columns: 1fr; } }
-
-        /* Panel */
-        .panel {
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 16px; overflow: hidden;
-        }
-
-        .panel-header {
-          padding: 18px 22px; border-bottom: 1px solid rgba(255,255,255,0.06);
-          display: flex; align-items: center; justify-content: space-between;
-        }
-
-        .panel-title {
-          font-size: 13.5px; font-weight: 500; color: rgba(255,255,255,0.7);
-          display: flex; align-items: center; gap: 8px;
-        }
-
-        .panel-action {
-          font-size: 12px; color: #14b47a; text-decoration: none;
-          transition: opacity 0.2s;
-        }
-        .panel-action:hover { opacity: 0.7; }
-
-        /* Orders table */
-        .orders-table { width: 100%; border-collapse: collapse; }
-
-        .orders-table th {
-          padding: 10px 22px; text-align: left;
-          font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
-          color: rgba(255,255,255,0.2); font-weight: 500;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .orders-table td {
-          padding: 14px 22px; font-size: 13.5px;
-          color: rgba(255,255,255,0.55);
-          border-bottom: 1px solid rgba(255,255,255,0.04);
-        }
-
-        .orders-table tr:last-child td { border-bottom: none; }
-        .orders-table tr:hover td { background: rgba(255,255,255,0.02); }
-
-        .td-primary { color: rgba(255,255,255,0.8) !important; font-weight: 500; }
-
-        .status-pill {
-          display: inline-flex; align-items: center; gap: 5px;
-          padding: 3px 10px; border-radius: 100px;
-          font-size: 11.5px; font-weight: 500;
-        }
-        .status-dot { width: 5px; height: 5px; border-radius: 50%; }
-
-        /* Quick actions */
-        .quick-actions { display: flex; flex-direction: column; gap: 6px; padding: 14px; }
-
-        .qa-btn {
-          display: flex; align-items: center; gap: 12px;
-          padding: 12px 14px; border-radius: 11px;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.06);
-          color: rgba(255,255,255,0.5); font-size: 13.5px;
-          text-decoration: none; transition: all 0.18s;
-          font-family: 'DM Sans', sans-serif; cursor: pointer;
-        }
-        .qa-btn:hover {
-          background: rgba(20,180,120,0.07);
-          border-color: rgba(20,180,120,0.2);
-          color: rgba(255,255,255,0.8);
-        }
-
-        .qa-icon {
-          width: 34px; height: 34px; border-radius: 9px;
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .qa-label { font-weight: 400; }
-        .qa-arrow { margin-left: auto; color: rgba(255,255,255,0.15); font-size: 14px; }
       `}</style>
 
       <div className="dash-root">
@@ -286,7 +178,6 @@ export default function Dashboard() {
           <Navbar />
 
           <div className="dash-body">
-            {/* Page header */}
             <div className="page-header">
               <div className="page-eyebrow">Overview</div>
               <h1 className="page-title">
@@ -295,93 +186,97 @@ export default function Dashboard() {
               <p className="page-sub">Find fresh crops from local farmers and manage your purchases.</p>
             </div>
 
-            {/* Stats */}
-            <div className="stats-grid">
-              {stats.map((s, i) => (
-                <div className="stat-card" key={i}>
-                  <div className="stat-icon-wrap" style={{ background: s.bg, border: `1px solid ${s.border}` }}>
-                    <span style={{ color: s.accent }}>{s.icon}</span>
+            {/* Real Stats */}
+            {loading ? (
+              <div className="text-center py-5">
+                <div className="spinner-border text-success" role="status"></div>
+                <p className="mt-3 text-light">Loading your dashboard...</p>
+              </div>
+            ) : (
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <div className="stat-icon-wrap" style={{ background: 'rgba(20,180,120,0.08)', border: '1px solid rgba(20,180,120,0.15)' }}>
+                    <span style={{ color: '#14b47a' }}>🌱</span>
                   </div>
-                  <div className="stat-value">{s.value}</div>
-                  <div className="stat-label">{s.label}</div>
-                  <div className="stat-delta" style={{ color: s.accent }}>
-                    <span>↑</span> {s.delta}
+                  <div className="stat-value">{stats.availableCrops}</div>
+                  <div className="stat-label">Available Crops</div>
+                  <div className="stat-delta" style={{ color: '#14b47a' }}>
+                    Fresh from farmers
                   </div>
                 </div>
-              ))}
-            </div>
 
-            {/* Content row */}
-            <div className="content-row">
-              {/* Recent orders */}
-              <div className="panel">
-                <div className="panel-header">
-                  <span className="panel-title">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-                    </svg>
-                    Recent Orders
-                  </span>
-                  <a href="/orders" className="panel-action">View all →</a>
+                <div className="stat-card">
+                  <div className="stat-icon-wrap" style={{ background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.15)' }}>
+                    <span style={{ color: '#f5a623' }}>🛒</span>
+                  </div>
+                  <div className="stat-value">{stats.itemsInCart}</div>
+                  <div className="stat-label">Items in Cart</div>
+                  <div className="stat-delta" style={{ color: '#f5a623' }}>
+                    Ready to checkout
+                  </div>
                 </div>
-                <table className="orders-table">
-                  <thead>
-                    <tr>
-                      <th>Order</th>
-                      <th>Crop</th>
-                      <th>Farmer</th>
-                      <th>Qty</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentOrders.map((o) => (
-                      <tr key={o.id}>
-                        <td className="td-primary">{o.id}</td>
-                        <td>{o.crop}</td>
-                        <td>{o.farmer}</td>
-                        <td>{o.qty}</td>
-                        <td>
-                          <span className="status-pill" style={{
-                            background: `${o.statusColor}15`,
-                            color: o.statusColor,
-                            border: `1px solid ${o.statusColor}30`,
-                          }}>
-                            <span className="status-dot" style={{ background: o.statusColor }} />
-                            {o.status}
-                          </span>
-                        </td>
+
+                <div className="stat-card">
+                  <div className="stat-icon-wrap" style={{ background: 'rgba(20,180,120,0.08)', border: '1px solid rgba(20,180,120,0.15)' }}>
+                    <span style={{ color: '#14b47a' }}>📦</span>
+                  </div>
+                  <div className="stat-value">{stats.totalOrders}</div>
+                  <div className="stat-label">Total Orders</div>
+                  <div className="stat-delta" style={{ color: '#14b47a' }}>
+                    Placed by you
+                  </div>
+                </div>
+
+                <div className="stat-card">
+                  <div className="stat-icon-wrap" style={{ background: 'rgba(124,106,247,0.08)', border: '1px solid rgba(124,106,247,0.15)' }}>
+                    <span style={{ color: '#7c6af7' }}>💬</span>
+                  </div>
+                  <div className="stat-value">{stats.unreadMessages}</div>
+                  <div className="stat-label">Unread Messages</div>
+                  <div className="stat-delta" style={{ color: '#7c6af7' }}>
+                    From farmers
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Recent Orders Section */}
+            <div className="mt-5">
+              <h5 className="text-light mb-3">Recent Orders</h5>
+              {recentOrders.length === 0 ? (
+                <p className="text-muted">No orders placed yet.</p>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-dark table-hover">
+                    <thead>
+                      <tr>
+                        <th>Order ID</th>
+                        <th>Crop</th>
+                        <th>Farmer</th>
+                        <th>Quantity</th>
+                        <th>Total</th>
+                        <th>Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Quick actions */}
-              <div className="panel">
-                <div className="panel-header">
-                  <span className="panel-title">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                    </svg>
-                    Quick Actions
-                  </span>
+                    </thead>
+                    <tbody>
+                      {recentOrders.map((order) => (
+                        <tr key={order._id}>
+                          <td>#{order._id.slice(-6)}</td>
+                          <td>{order.cropId?.name || 'Crop'}</td>
+                          <td>{order.farmerId?.name || 'Farmer'}</td>
+                          <td>{order.quantity} kg</td>
+                          <td>₹{order.totalPrice}</td>
+                          <td>
+                            <span className={`badge ${order.status === 'pending' ? 'bg-warning' : 'bg-success'}`}>
+                              {order.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="quick-actions">
-                  {[
-                    { icon: '🌱', label: 'Browse Crops', href: '/crops',   bg: 'rgba(20,180,120,0.10)' },
-                    { icon: '🛒', label: 'View Cart',    href: '/cart',    bg: 'rgba(245,166,35,0.10)' },
-                    { icon: '💬', label: 'Chat Farmers', href: '/chat',    bg: 'rgba(124,106,247,0.10)' },
-                    { icon: '👤', label: 'My Profile',   href: '/profile', bg: 'rgba(255,255,255,0.06)' },
-                  ].map((a) => (
-                    <a key={a.href} href={a.href} className="qa-btn">
-                      <div className="qa-icon" style={{ background: a.bg }}>{a.icon}</div>
-                      <span className="qa-label">{a.label}</span>
-                      <span className="qa-arrow">→</span>
-                    </a>
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
